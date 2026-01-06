@@ -8,7 +8,7 @@ The system scores paths using two factors:
 - **Frequency**: How many times you've accessed the path
 - **Recency**: How recently you accessed it
 
-The size of the data store containing the cached paths is limited in size and older entries are evicted which keeps the file lean and fast to search.
+The data store containing the cache is pruned with each access to keep it both under capacity and to evict those entries that fall below a configurable threshold..
 
 ## Installation
 
@@ -50,13 +50,14 @@ Edit `caching/config.py` to adjust:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `FREQUENCY_WEIGHT` | 0.6 | Weight given to access count |
-| `RECENCY_WEIGHT` | 0.4 | Weight given to recent access |
+| `RECENCY_WEIGHT` | 0.5 | Weight given to recent access |
 | `INITIAL_CACHE_SCORE` | 0.5 | The initial score given to new paths |
 | `RECENCY_HALFLIFE_HOURS` | 72 | Hours until recency score halves |
 | `FREQUENCY_LOWER_BOUND` | 8 | Number of times a path is accessed, below which the score is 0.5 or less |
 | `FREQUENCY_UPPER_BOUND` | 15 | Number of times a path is accessed, above which the score is 0.75 or more |
 | `MAX_CACHE_ENTRIES` | 70 | Maximum paths to track |
 | `FALLBACKS` | | List of paths to check if no match is found in cache |
+| `EVICTION_THRESHOLD` | 0.25 | Minimum cache value before entry is evicted from data store |
 
 ## How Scoring Works
 
@@ -103,6 +104,106 @@ score = (frequency_value) ^ (FREQUENCY_WEIGHT) × (recency_value) ^ (RECENCY_WEI
 ```
 
 Scores are recalculated at query time to account for time passing since last access.
+
+### Choosing an Eviction Threshold
+
+The `EVICTION_THRESHOLD` determines which entries get purgeds from the cache. The entries with a cache value lower than the threshold are evicted. The table below shows the cache values for various access counds and ages using the default parameters.
+
+**Default Parameters**:
+- `FREQUENCY_WEIGHT=0.6` 
+- `RECENCY_WEIGHT=0.5`
+- `FREQUENCY_LOWER_BOUND=8`
+- `FREQUENCY_UPPER_BOUND=15`
+- `RECENCY_HALFLIFE_HOURS=72`
+
+| Accesses | 1 hour | 1 day | 3 days | 1 week | 2 weeks |
+|----------|--------|-------|--------|--------|---------|
+| 1        | 0.43   | 0.39  | 0.31   | 0.19   | 0.09    |
+| 5        | 0.56   | 0.50  | 0.40   | 0.25   | 0.11    |
+| 10       | 0.72   | 0.64  | 0.51   | 0.32   | 0.14    |
+| 25       | 0.96   | 0.86  | 0.68   | 0.43   | 0.19    |
+| 50       | 0.99   | 0.89  | 0.71   | 0.45   | 0.20    |
+
+**Reading the table**: Find the row matching how often you access apath and the column for how old it is. The cell value is the given cache score. Entries with scores below the threshold get evicted.
+
+#### Example Thresholds
+
+| Threshold | Effect |
+|-----------|--------|
+| 0.10 | Conservative. Keeps most entries. A path accessed 5 times survives 2 weeks. |
+| 0.20 | Moderate. Single-access paths evicted within a week; heavily used paths survive ~2 weeks. |
+| 0.35 | Aggressive. Single-access paths evicted within days. Keeps only frequently used paths. |
+
+### Testing Configurations
+
+The `config_tester.py` script generates reference tables for any parameter combination which should help tune the cache behavior before commiting the changes.
+
+#### Basic Usage
+
+- Generate table with default parameters
+
+```bash
+python3 config_tester.py
+```
+
+- Output as markdown
+
+```bash
+python3 config_tester.py --markdown
+```
+
+- Testing an eviction threshold
+
+```bash
+pyton3 config_tester.py --threshold 0.25
+```
+
+**Output**:
+
+```
+Cache Value Reference Table
+=================================================================
+FREQUENCY_WEIGHT=0.6, RECENCY_WEIGHT=0.4
+FREQUENCY_LOWER_BOUND=8, FREQUENCY_UPPER_BOUND=15
+RECENCY_HALFLIFE_HOURS=72
+EVICTION_THRESHOLD=0.25  (* = evicted)
+
+Accesses      1 hour     1 day    3 days    1 week   2 weeks
+------------------------------------------------------------
+1               0.43      0.40      0.33     0.23*     0.12*
+5               0.56      0.51      0.43      0.30     0.15*
+10              0.72      0.66      0.55      0.38     0.20*
+25              0.96      0.88      0.73      0.50      0.26
+50              1.00      0.91      0.76      0.52      0.27
+```
+
+#### Custom Parameters
+
+Overide any parameters to see its effect
+
+- Faster decay (48-hour half-life instead of 72)
+
+```bash
+python3 config_tester.py --halflife 48 --threshold 0.20
+```
+
+- Combine multiple changes
+
+```bash
+python3 config_tester.py --halflife 48 --recency-weight 0.5 --lower-bound 5 --threshold 0.15
+```
+
+#### Available Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--frequency-weight` | 0.6 | Exponent for frequency component |
+| `--recency-weight` | 0.5 | Exponent for recency component |
+| `--lower-bound` | 8 | Sigmoid inflection point (accesses for 0.5 frequency score) |
+| `--upper-bound` | 15 | Sigmoid steepness (accesses for 0.75 frequency score) |
+| `--halflife` | 72 | Hours until recency score halves |
+| `--threshold` | — | Eviction threshold to test (marks cells below with \*) |
+| `--markdown` | — | Output as markdown table |
 
 ## Files
 
