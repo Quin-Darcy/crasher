@@ -156,7 +156,7 @@ class CacheManager:
             key=lambda p: self._data_store[p]['cache_value']
         )
         
-        excess = len(self._data_store) - config.MAX_CACHE_ENTIRES
+        excess = len(self._data_store) - config.MAX_CACHE_ENTRIES
 
         # Remove lowest-scored entries to get under capacity
         for path in sorted_paths[:excess]:
