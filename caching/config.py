@@ -58,3 +58,6 @@ FREQUENCY_SCALE = (FREQUENCY_UPPER_BOUND - FREQUENCY_LOWER_BOUND) / LN3
 
 # Maximum entries to keep in data store (oldest by access_time removed first)
 MAX_CACHE_ENTRIES = 70
+
+# Minimum cache value before eviction
+EVICTION_THRESHOLD = 0.1

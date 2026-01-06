@@ -29,8 +29,7 @@ def calculate_score(times_accessed: int, last_access_time: float, current_time: 
     frequency_score = _frequency_component(times_accessed)
     recency_score = _recency_component(last_access_time, current_time)
     
-    return (config.FREQUENCY_WEIGHT * frequency_score + 
-            config.RECENCY_WEIGHT * recency_score)
+    return math.pow(frequency_score, config.FREQUENCY_WEIGHT) * math.pow(recency_score, config.RECENCY_WEIGHT)
 
 
 def _frequency_component(times_accessed: int) -> float:

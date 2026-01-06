@@ -62,7 +62,7 @@ Edit `caching/config.py` to adjust:
 
 ### Frequency Component
 
-> **TODO**: Add sigmoid graph showing how parameters change it
+![frequency_sigmoid](images/frequency_sigmoid_plot.png)
 
 Uses a sigmoid function centered around `FREQUENCY_LOWER_BOUND` (default: 8 accesses). This means that if a file path is accessed 8 times, it's frequency value is assigned 0.5. Thus, 8 would be the *inflection point* of the sigmoid.
 
@@ -77,7 +77,7 @@ With the default parameters, these are the frequency value assignments.
 
 ### Recency Component
 
-> **TODO**: Add exponential graph showing how parameter changes it
+![recency_decay](images/recency_decay_plot.png)
 
 Uses exponential decay with configurable half-life. The `RECENCY_HALFLIFE_HOURS` defines how many hours with no accesses until a given path's recency value is cut in half. 
 
@@ -90,12 +90,16 @@ The current default given the following recency value assignments.
 
 ### Combined Score
 
-The "cache value" of a given path is computed as the combined score of its recency value and frequency value. The parameters `FREQUENCY_WEIGHT` and `RECENCY_WEIGHT` determine how important each value is. 
+![combined_score](images/combined_score_surface.png)
+
+The "cache value" of a given path is computed as the combined score of its recency value and frequency value. The parameters `FREQUENCY_WEIGHT` and `RECENCY_WEIGHT` determine how important frequency and recency is, respectively. The cache value is defined as a log-linear combination which means we raise the frequency and recency values to their respective weights and multiply. 
+
+Higher weights means the terms express more quickly. For example, as you increase `RECENCY_WEIGHT`, then the longer its been since a file has been accessed has a greater impact on the overall cache value and it will decay faster.
 
 Combining the score allows for a balancing to take place. For example, if there was a folder you visited very actively 1 year ago then it would have a very high frequency value. However, it's recency value would be practically zero and so it's overall cache value would not be execessivly high due to past activity.
 
 ```
-score = (FREQUENCY_WEIGHT × frequency_value) + (RECENCY_WEIGHT × recency_value)
+score = (frequency_value) ^ (FREQUENCY_WEIGHT) × (recency_value) ^ (RECENCY_WEIGHT)
 ```
 
 Scores are recalculated at query time to account for time passing since last access.

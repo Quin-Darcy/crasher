@@ -77,7 +77,7 @@ class CacheManager:
                 'cache_value': cache_value.initial_score()
             }
         
-        self._enforce_size_limit()
+        self._evict()
         self._save()
     
     def get_matching_paths(self, term: str) -> List[str]:
@@ -139,22 +139,36 @@ class CacheManager:
         # Strip trailing slash for consistent checking
         return os.path.exists(path.rstrip('/'))
     
-    def _enforce_size_limit(self) -> None:
-        """Remove oldest entries if cache exceeds size limit."""
+    def _evict(self) -> None:
+        """
+        Check to make sure size is less than max
+        For excess, evict those with lowest cache value
+
+        Final sweep to evict all remaining entries with
+        cache value less than threshold
+        """            
         if len(self._data_store) <= config.MAX_CACHE_ENTRIES:
             return
         
         # Sort by access_time, oldest first
         sorted_paths = sorted(
             self._data_store.keys(),
-            key=lambda p: self._data_store[p]['access_time']
+            key=lambda p: self._data_store[p]['cache_value']
         )
         
-        # Remove oldest entries
-        excess = len(self._data_store) - config.MAX_CACHE_ENTRIES
+        excess = len(self._data_store) - config.MAX_CACHE_ENTIRES
+
+        # Remove lowest-scored entries to get under capacity
         for path in sorted_paths[:excess]:
             del self._data_store[path]
-    
+
+        # Sweep remaining: remove anything below threshold
+        for path in sorted_paths[excess:]:
+            if self._data_store[path]['cache_value'] < config.EVICTION_THRESHOLD:
+                del self._data_store[path]
+            else:
+                break
+
     def _save(self) -> None:
         """Save data and update cache file."""
         self.storage.save_data(self._data_store)
