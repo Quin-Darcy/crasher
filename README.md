@@ -12,6 +12,15 @@ The data store containing the cache is pruned with each access to keep it both u
 
 ## Installation
 
+> [!NOTE]
+> Be sure the following dependencies are installed first before proceeding:
+> - `ranger`:
+>   - https://github.com/ranger/ranger
+> - `fd`:
+>   - https://github.com/sharkdp/fd
+> - `fzf`:
+>   - https://github.com/junegunn/fzf
+
 1. Clone this repo and enter it
 
 ```bash
