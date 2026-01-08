@@ -113,7 +113,8 @@ class SearchStrategy:
                     if result:
                         return result
 
-        # If there were no results using filtered approach, fallback to simple search using just the search term
+        # If there were no results using filtered approach, we assume hint was incorrect
+        # and fallback to simple search using only the search term
         return self._search_simple(search_term, search_type)
 
     def _find_matching_paths(
@@ -130,7 +131,7 @@ class SearchStrategy:
 
         try:
             result = subprocess.run(
-                ['fd', '-t', type_flag, term, directory],
+                ['fd', '-t', '-p', type_flag, term, directory],
                 capture_output=True,
                 text=True,
                 timeout=30
